@@ -1,0 +1,12 @@
+//
+//  Base.xcconfig
+//  Store
+//
+//  Created by Designø on 02/03/2026.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://help.apple.com/xcode/#/dev745c5c974
+
+APP_NAME = Støre
+BASE_BUNDLE_IDENTIFIER = com.designo.store-app
