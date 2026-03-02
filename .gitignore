@@ -60,3 +60,21 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+
+# Private Config files
+Configuration/*.private.xcconfig
+*.private.xcconfig
+
+# Environment files
+.env
+.env.staging
+.env.release
+.env.production
