@@ -5,7 +5,7 @@
 If you discover a security vulnerability in **Støre**, please report it responsibly.
 
 - Do **not** open a public GitHub issue for security vulnerabilities.
-- Instead, please contact the maintainers directly at: [mailto:security@designo-group.com](security@designo-group.com)
+- Instead, please contact the maintainers directly at: [security@designo-group.com](mailto:security@designo-group.com)
 - Provide as much detail as possible, including steps to reproduce the issue.
 
 You will receive an acknowledgment as soon as possible, and we will work to resolve the issue promptly.
