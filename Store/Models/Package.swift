@@ -170,7 +170,7 @@ struct BrewOutdatedResponse: Decodable {
         let name: String
         let installedVersions: [String]
         let currentVersion: String
-
+        
         enum CodingKeys: String, CodingKey {
             case name
             case installedVersions = "installed_versions"

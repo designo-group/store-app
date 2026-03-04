@@ -59,12 +59,8 @@ class HomeBrewVM: ObservableObject {
     /*@Published*/ var searchResults: [Package] = []
     /*@Published*/ var isSearching: Bool = false
     /*@Published*/ var discoverFilter: DiscoverFilter = .all
-    
-    /// - Parameter HomeBrew
-    /*@Published*/ var allPackages: [Package] = []
-    var allCasks: [Package] { allPackages.filter { $0.type == .cask } }
-    var allFormulae: [Package] { allPackages.filter { $0.type == .formula } }
-    
+        
+    private var searchTask: Task<Void, Never>?
     // Used to display all the available packages when the search query is empty
     var filteredPackages: [Package] {
         switch discoverFilter {
@@ -82,6 +78,11 @@ class HomeBrewVM: ObservableObject {
         }
     }
     
+    /// - Parameter HomeBrew
+    /*@Published*/ var allPackages: [Package] = []
+    var allCasks: [Package] { allPackages.filter { $0.type == .cask } }
+    var allFormulae: [Package] { allPackages.filter { $0.type == .formula } }
+    
     /*@Published*/ var installedPackages: [Package] = []
     /*@Published*/ var isLoadingInstalled: Bool = false
     /*@Published*/ var outdatedPackages: [Package] = []
@@ -98,10 +99,18 @@ class HomeBrewVM: ObservableObject {
     private var pty: PTY?
     private var _PATH: String? = nil
     
+    /// @v2
 //    let brew = BrewService.shared
     
     var logEntries: [LogEntry] = []
     
+    init() {
+//        loadFavorites()
+    }
+    
+    deinit {
+        stopShell()
+    }
     
     func checkForExistingBrew() async -> Bool {
         isStartingUp = true
@@ -158,16 +167,50 @@ class HomeBrewVM: ObservableObject {
                 p.imgURL = cleanHostname.flatMap { URL(string: "https://www.google.com/s2/favicons?sz=64&domain=\($0)&default=404") }
                 return p
             }
-            
+    
             allPackages = packages
-            searchResults = packages
+//            searchResults = packages
         } catch {
             print("Failed to load all packages: \(error.localizedDescription)")
         }
     }
     
     func performSearch() {
-
+        searchTask?.cancel()
+        let query = searchQuery.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else {
+            searchResults = []
+            isSearching = false
+            return
+        }
+        let installedById = Dictionary(
+            uniqueKeysWithValues: installedPackages.map { ($0.id, $0) }
+        )
+        isSearching = true
+        searchTask = Task { [weak self] in
+            guard let self else { return }
+            defer { if !Task.isCancelled { self.isSearching = false } }
+            do {
+                let results = self.allPackages.filter {
+                    $0.name.localizedCaseInsensitiveContains(query)
+                }
+                self.searchResults = results.map { /*[weak self]*/ pkg in
+                    var p = pkg
+                    if let installed = installedById[pkg.id] {
+                        p.installedVersion = installed.installedVersion
+//                        p.isFavorite = self?.favoriteIds.contains(pkg.id) ?? false
+                    }
+                    return p
+                }
+                try Task.checkCancellation()
+            } catch is CancellationError {
+                // Silently discard cancelled searches.
+            } catch {
+                if !Task.isCancelled {
+                    print("Search failed: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 
     func refreshInstalled() async {
@@ -243,15 +286,29 @@ class HomeBrewVM: ObservableObject {
                 throw BrewError.parseError(error.localizedDescription)
             }
 
-            outdatedPackages = response.formulae.map {
-                Package(id: $0.name, name: $0.name, type: .formula,
-                        installedVersion: $0.installedVersions.first,
+            var packages = response.formulae.map {
+                Package(id: $0.name, name: $0.name, type: .formula, installedVersion: $0.installedVersions.first,
                         latestVersion: $0.currentVersion, isOutdated: true)
             } + response.casks.map {
-                Package(id: $0.name, name: $0.name, type: .cask,
-                        installedVersion: $0.installedVersions.first,
+                Package(id: $0.name, name: $0.name, type: .cask, installedVersion: $0.installedVersions.first,
                         latestVersion: $0.currentVersion, isOutdated: true)
             }
+            let installedById = Dictionary(
+                uniqueKeysWithValues: installedPackages.map { ($0.id, $0) }
+            )
+            packages = packages.map { /*[weak self]*/ pkg in
+                var p = pkg
+//                p.isFavorite = self?.favoriteIds.contains(pkg.id) ?? false
+                let homepageString = installedById[pkg.id]?.homepage ?? pkg.homepage
+                if let homepageURL = URL(string: homepageString),
+                    let host = homepageURL.host?.lowercased() {
+                    let cleanHost = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+                    p.imgURL = URL(string: "https://www.google.com/s2/favicons?sz=64&domain=\(cleanHost)&default=404")
+                }
+                print(p.imgURL)
+                return p
+            }
+            outdatedPackages = packages
             updateDockBadge()
         } catch {
             print("Failed to load updates: \(error.localizedDescription)")
@@ -449,7 +506,7 @@ class HomeBrewVM: ObservableObject {
                 }
             }
 
-//            // Optional: timeout to prevent hanging indefinitely
+//            // timeout to prevent hanging indefinitely
 //            DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
 //                if !didFinish {
 //                    didFinish = true
