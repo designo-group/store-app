@@ -506,7 +506,7 @@ class HomeBrewVM: ObservableObject {
                 }
             }
 
-//            // Optional: timeout to prevent hanging indefinitely
+//            // timeout to prevent hanging indefinitely
 //            DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
 //                if !didFinish {
 //                    didFinish = true
